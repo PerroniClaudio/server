@@ -50,4 +50,33 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    /**
+     * Get the company that owns the user.
+     */
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    /**
+     * get user's tickets
+     */
+
+    public function tickets()
+    {
+        return $this->hasMany(Ticket::class);
+    }
+
+    /**
+     * get user's groups
+     */
+
+    public function groups()
+    {
+        return $this->belongsToMany(Group::class, 'user_groups', 'user_id', 'group_id');
+    }
+
+
 }

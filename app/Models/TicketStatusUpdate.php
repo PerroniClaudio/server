@@ -8,4 +8,25 @@ use Illuminate\Database\Eloquent\Model;
 class TicketStatusUpdate extends Model
 {
     use HasFactory;
+
+    protected $fillable = [
+        'ticket_id',
+        'user_id',
+        'status',
+    ];
+
+    /* get the owner */
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /* get the ticket */
+
+    public function ticket()
+    {
+        return $this->belongsTo(Ticket::class);
+    }
+    
 }
