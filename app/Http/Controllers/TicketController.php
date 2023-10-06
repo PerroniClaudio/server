@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Ticket;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache; // Otherwise no redis connection :)
 
 class TicketController extends Controller
 {
@@ -15,8 +16,13 @@ class TicketController extends Controller
     {
         // Show only the tickets belonging to the authenticated user
 
-        $tickets = Ticket::where('user_id', auth()->id())->with('ticket_messages')->get();
+        $user = auth()->user();
+        $cacheKey = 'user_' . $user->id . '_tickets';
 
+        $tickets = Cache::remember($cacheKey, now()->addMinutes(60), function () use ($user) {
+            return Ticket::where('user_id', $user->id)->get();
+        });
+    
         return response([
             'tickets' => $tickets,
         ], 200);
@@ -40,6 +46,8 @@ class TicketController extends Controller
     {
         //
 
+        $user = auth()->user();
+
         $fields = $request->validate([
             'description' => 'required|string',
             'type' => 'required|string',
@@ -48,11 +56,13 @@ class TicketController extends Controller
         $ticket = Ticket::create([
             'description' => $fields['description'],
             'type' => $fields['type'],
-            'user_id' => auth()->id(),
+            'user_id' => $user->id,
             'status' => '0',
             'company_id' => auth()->user()->company_id,
             'file' =>  $request->file('file') ? $request->file('file')->store('files') : null,
         ]);
+
+        cache()->forget('user_' . $user->id . '_tickets');
 
         return response([
             'ticket' => $ticket,
@@ -65,9 +75,13 @@ class TicketController extends Controller
      */
     public function show(Ticket $ticket)
     {
-        //
 
-        $ticket = Ticket::where('id', $ticket->id)->where('user_id', auth()->id())->first();
+        $user = auth()->user();
+        $cacheKey = 'user_' . $user->id . '_tickets_show:' . $ticket->id;
+
+        $tickets = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($user) {
+            return Ticket::where('id', $ticket->id)->where('user_id', auth()->id())->first();
+        });
 
         return response([
             'ticket' => $ticket,
@@ -92,6 +106,9 @@ class TicketController extends Controller
     {
         //
 
+        $user = auth()->user();
+        $cacheKey = 'user_' . $user->id . '_tickets_show:' . $ticket->id;
+
         $fields = $request->validate([
             'duration' => 'required|string',
             'due_date' => 'required|date',
@@ -103,6 +120,8 @@ class TicketController extends Controller
             'duration' => $fields['duration'],
             'due_date' => $fields['due_date'],
         ]);
+
+        cache()->forget($cacheKey);
 
         return response([
             'ticket' => $ticket,
@@ -117,6 +136,7 @@ class TicketController extends Controller
         //
 
         $ticket = Ticket::where('id', $ticket->id)->where('user_id', auth()->id())->first();
+        cache()->forget('user_' . $user->id . '_tickets');
 
         $ticket->update([
             'status' => '5',
